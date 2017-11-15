@@ -199,7 +199,7 @@ namespace storm {
             }
 
             template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type=0>    
-            void SparseMarkovAutomatonCslHelper::calculateVu(uint64_t k, uint64_t node, ValueType lambda, std::vector<std::vector<ValueType>>& vu, std::vector<std::vector<ValueType>>& wu, storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates){
+            void SparseMarkovAutomatonCslHelper::calculateVu(uint64_t k, uint64_t node, ValueType lambda, std::vector<std::vector<ValueType>>& vu, std::vector<std::vector<ValueType>>& wu, storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates, std::vector<double> const& poisson){
                 if (vu[k][node]!=-1){return;} //dynamic programming. avoiding multiple calculation.
                 uint64_t N = vu.size()-1;
                 auto rowGroupIndices = fullTransitionMatrix.getRowGroupIndices();
@@ -209,7 +209,7 @@ namespace storm {
                     if (wu[N-1-(i-k)][node]==-1){
                         calculateWu((N-1-(i-k)),node,lambda,wu,fullTransitionMatrix,markovianStates,psiStates);
                     }
-                    res+=poisson(lambda, i)*wu[N-1-(i-k)][node];
+                    res+=poisson[i]*wu[N-1-(i-k)][node];
                 }
                 vu[k][node]=res;
             }
@@ -268,7 +268,7 @@ namespace storm {
             }
 
             template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type=0>    
-            void SparseMarkovAutomatonCslHelper::calculateVd(uint64_t k, uint64_t node, ValueType lambda, std::vector<std::vector<ValueType>>& vd, storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates){
+            void SparseMarkovAutomatonCslHelper::calculateVd(uint64_t k, uint64_t node, ValueType lambda, std::vector<std::vector<ValueType>>& vd, storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates, std::vector<double> const& poisson){
                
                 std::ofstream logfile("U+logfile.txt", std::ios::app);
 
@@ -288,7 +288,7 @@ namespace storm {
                 if (psiStates[node]){
                     res = storm::utility::zero<ValueType>();
                     for (uint64_t i = k ; i<N ; i++){
-                        ValueType between = poisson(lambda,i);
+                        ValueType between = poisson[i];
                         res+=between;
                     }
                     vd[k][node]=res;
@@ -304,7 +304,7 @@ namespace storm {
                     for (auto &element : line){
                         uint64_t to = element.getColumn();
                         if (vd[k+1][to]==-1){
-                            calculateVd(k+1,to,lambda,vd, fullTransitionMatrix, markovianStates,psiStates);
+                            calculateVd(k+1,to,lambda,vd, fullTransitionMatrix, markovianStates,psiStates, poisson);
                         }
                         res+=element.getValue()*vd[k+1][to];
                     }
@@ -323,7 +323,7 @@ namespace storm {
                                 continue;
                             }
                             if (vd[k][to]==-1){
-                                calculateVd(k,to,lambda,vd, fullTransitionMatrix, markovianStates,psiStates);
+                                calculateVd(k,to,lambda,vd, fullTransitionMatrix, markovianStates,psiStates,poisson);
                             }
                             between+=element.getValue()*vd[k][to];
                         }
@@ -337,7 +337,7 @@ namespace storm {
             }
 
             template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type>
-            std::vector<ValueType> SparseMarkovAutomatonCslHelper::unifPlus( std::pair<double, double> const& boundsPair, std::vector<ValueType> const& exitRateVector, storm::storage::SparseMatrix<ValueType> const& transitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates){
+            std::vector<ValueType> SparseMarkovAutomatonCslHelper::unifPlus(std::pair<double, double> const& boundsPair, std::vector<ValueType> const& exitRateVector, storm::storage::SparseMatrix<ValueType> const& transitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates){
                 std::ofstream logfile("U+logfile.txt", std::ios::app);
                 ValueType maxNorm = 0;
 
@@ -385,7 +385,7 @@ namespace storm {
                 //(1) define horizon, epsilon, kappa , N, lambda,
                 uint64_t numberOfStates = fullTransitionMatrix.getRowGroupCount();
                 double T = boundsPair.second;
-                ValueType kappa = storm::utility::one<ValueType>() /10; // would be better as option-parameter
+                ValueType kappa = storm::utility::one<ValueType>() /10000; // would be better as option-parameter
                 ValueType epsilon = storm::settings::getModule<storm::settings::modules::GeneralSettings>().getPrecision();
                 ValueType lambda = exitRateVector[0];
                 for (ValueType act: exitRateVector) {
@@ -426,7 +426,10 @@ namespace storm {
                         }
                         exitRate[i] = exitNew;
                     }
-                       
+
+                    //calculate poisson distributions for new lambda
+                    std::vector<double> poisson = foxGlynnProb(lambda*T, N, epsilon*kappa);
+
                     // (4) define vectors/matrices
                     std::vector<ValueType> init(numberOfStates, -1);
                     vd = std::vector<std::vector<ValueType>> (N + 1, init);
@@ -438,9 +441,9 @@ namespace storm {
                     // (5) calculate vectors and maxNorm
                     for (uint64_t i = 0; i < numberOfStates; i++) {
                         for (uint64_t k = N; k <= N; k--) {
-                                calculateVd(k, i, T*lambda, vd, fullTransitionMatrix, markovianStates, psiStates);
+                                calculateVd(k, i, T*lambda, vd, fullTransitionMatrix, markovianStates, psiStates, poisson);
                                 calculateWu(k, i, T*lambda, wu, fullTransitionMatrix, markovianStates, psiStates);
-                                calculateVu(k, i, T*lambda, vu, wu, fullTransitionMatrix, markovianStates, psiStates);
+                                calculateVu(k, i, T*lambda, vu, wu, fullTransitionMatrix, markovianStates, psiStates, poisson);
                                 //also use iteration to keep maxNorm of vd and vu up to date, so the loop-condition is easy to prove
                                 ValueType diff = std::abs(vd[k][i]-vu[k][i]);
                                 maxNorm  = std::max(maxNorm, diff);
