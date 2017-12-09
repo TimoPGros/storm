@@ -84,7 +84,7 @@ namespace storm {
 
 
                     template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type=0>
-                static storm::storage::BitVector identifyProbCycles(storm::storage::SparseMatrix<ValueType> const& TransitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates);
+                    static std::vector<int> identifyProbCycles(storm::storage::SparseMatrix<ValueType> const& TransitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates);
 
                 //TODO: move this
 

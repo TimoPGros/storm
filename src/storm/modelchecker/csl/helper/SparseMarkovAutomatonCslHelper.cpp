@@ -387,6 +387,11 @@ namespace storm {
             void SparseMarkovAutomatonCslHelper::identify(
                     storm::storage::SparseMatrix<ValueType> const &fullTransitionMatrix,
                     storm::storage::BitVector const &markovianStates, storm::storage::BitVector const& psiStates) {
+                std::ofstream idstuff("idstuff", std::ios::app);
+
+
+                idstuff << fullTransitionMatrix.getRowGroupCount() << "\t" << fullTransitionMatrix.getRowCount() << "\t";
+
                 auto indices = fullTransitionMatrix.getRowGroupIndices();
                 bool realProb = false;
                 bool NDM = false;
@@ -419,7 +424,98 @@ namespace storm {
                     }
                 }
 
-                std:: cout << "prob States :" << probStates <<" markovian States: " << markStates << " realProb: "<< realProb << " NDM: " << NDM << " Alternating: " << Alternating << "\n";
+                ValueType maxExit =0;
+                int fanMax = 0;
+                int fanSum = 0;
+                int fanMin = 100000;
+                double fanAverage = 0;
+
+                int ndMin = 100000;
+                int ndMax = 0;
+                int ndSum = 0;
+                double ndAverage = 0;
+
+                int probCount =0;
+                int markCount =0;
+
+
+
+                for (auto i = 0 ; i < fullTransitionMatrix.getRowGroupCount() ; i++){
+                    if (markovianStates[i]){
+                        markCount++;
+                        auto to = indices[i];
+                        int fan = 0 ;
+                        for (auto& element : fullTransitionMatrix.getRow(to)){
+                            fan++;
+                        }
+                        fanSum+=fan;
+                        fanMin=std::min(fanMin,fan);
+                        fanMax=std::max(fanMax,fan);
+                    } else {
+                        probCount++;
+                        auto from = indices[i];
+                        auto to = indices[i+1];
+                        int diff = to - from;
+                        ndSum+=diff;
+                        ndMin=std::min(ndMin, diff);
+                        ndMax=std::max(ndMax, diff);
+                    }
+                }
+
+                if (fanMin==1000000){
+                    fanMin==0;
+                }
+                ndAverage = ndSum;
+                ndAverage /= probCount;
+                fanAverage = fanSum;
+                fanAverage /=markCount;
+
+                std::cout << "Fans: min: " << fanMin << " max: " << fanMax << " total " << fanSum << " with markov states " << markCount <<" average: " << fanAverage << "\n";
+                std::cout << "ND: min: " << ndMin << " max: " << ndMax << " total " << ndSum  << " with prob states " << probCount <<" average: " << ndAverage << "\n";
+
+                idstuff << fanMin << "\t" << fanMax << "\t" << fanSum << "\t" << markCount << "\t" << fanAverage << "\t";
+                idstuff << ndMin << "\t" << ndMax << "\t" << ndSum << "\t" << probCount << "\t" << ndAverage<< "\t";
+                auto cycles = identifyProbCycles(fullTransitionMatrix, markovianStates, psiStates);
+                bool hasCycles = false;
+
+
+
+
+                std::vector<int> cycleId(fullTransitionMatrix.getRowGroupCount(), 0);
+
+                for (int i = 0 ; i<cycles.size(); i++){
+                    if (cycles[i]!=-1 ){
+                        cycleId[cycles[i]]++;
+                        if (cycles[i]!=i){
+                            hasCycles=true;
+                        }
+                    }
+                }
+
+                std::cout << "\n";
+
+                int  max =0, min = 10000, count =0, sum=0;
+                for (int i = 0; i< cycleId.size(); i++){
+                    int element = cycleId[i];
+                    if (element>1){
+                        count++;
+                        sum+=element;
+                        min = std::min(element,min);
+                        max = std::max(element,max);
+                    }
+                }
+
+                if (min==10000){
+                    min =0;
+                }
+
+
+                double average =sum;
+                average /= count;
+
+                std::cout << "Number of Cycles: " << count << " capturing states: " << sum << " min size: " << min << " max size: " << max << " average : " << average << "\n";
+                idstuff << count << "\t" << sum << "\t" << min << "\t" << max << "\t" << average << "\n";
+                std::cout  << "has real Probabilities!=1: " << realProb <<  " Alternating: " << Alternating <<  "\n";
             }
 
             template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type>
@@ -447,7 +543,7 @@ namespace storm {
             }
 
                 template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type>
-            storm::storage::BitVector SparseMarkovAutomatonCslHelper::identifyProbCycles(storm::storage::SparseMatrix<ValueType> const& transitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates){
+            std::vector<int> SparseMarkovAutomatonCslHelper::identifyProbCycles(storm::storage::SparseMatrix<ValueType> const& transitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates){
 
                 storm::storage::BitVector const& probabilisticStates = ~markovianStates;
                 storm::storage::BitVector const& probabilisticNonGoalStates = ~markovianStates & ~psiStates;
@@ -465,13 +561,14 @@ namespace storm {
                 }
 
 
-                storm::storage::BitVector cycleStates(markovianStates.size(), false);
+                std::vector<int> cycleStates(markovianStates.size(), -1);
                 for (int i = 0 ; i< finish.size() ; i++){
                     auto f = finish[i];
                     for (int j =i+1; j<finish.size() ; j++){
                         if (finish[j]==f){
-                            cycleStates.set(transformIndice(probabilisticNonGoalStates,i),true);
-                            cycleStates.set(transformIndice(probabilisticNonGoalStates,j),true);
+                            cycleStates[transformIndice(probabilisticNonGoalStates,i)]=f;
+                            cycleStates[transformIndice(probabilisticNonGoalStates,j)]=f;
+
                         }
                     }
                 }
@@ -524,7 +621,9 @@ namespace storm {
                                                                             storm::solver::MinMaxLinearEquationSolverFactory<ValueType> const &minMaxLinearEquationSolverFactory) {
                 STORM_LOG_TRACE("Using UnifPlus to compute bounded until probabilities.");
 
-
+                identify(transitionMatrix,markovStates,psiStates);
+                std::cout << "returned\n";
+/*
                 std::ofstream logfile("U+logfile.txt", std::ios::app);
                 //logfile << "Using U+\n";
                 ValueType maxNorm = storm::utility::zero<ValueType>();
@@ -707,7 +806,7 @@ namespace storm {
                 } while (maxNorm > epsilon * (1 - kappa));
 
                 logfile.close();
-                return unifVectors[0][0];
+                return unifVectors[0][0]; */ return std::vector<ValueType>{0};
             }
 
             template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type>
