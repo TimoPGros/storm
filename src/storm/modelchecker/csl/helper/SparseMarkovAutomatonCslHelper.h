@@ -59,7 +59,7 @@ namespace storm {
                 
             private:
                 template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type=0>
-                static void identify(storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, storm::storage::BitVector const& markovianStates,storm::storage::BitVector const& psiStates);
+                static void identify(storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, storm::storage::BitVector const& markovianStates,storm::storage::BitVector const& psiStates,std::vector<ValueType> const &exitRateVector);
 
                 template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type=0>
                 static void calculateUnifPlusVector(Environment const& env, uint64_t k, uint64_t node, uint64_t const kind, ValueType lambda, uint64_t probSize, std::vector<std::vector<ValueType>> const& relativeReachability, OptimizationDirection dir, std::vector<std::vector<std::vector<ValueType>>>& unifVectors, storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, storm::storage::BitVector const& markovianStates, storm::storage::BitVector const& psiStates, std::unique_ptr<storm::solver::MinMaxLinearEquationSolver<ValueType>> const& solver, std::ofstream& logfile, std::vector<double> const& poisson);
@@ -109,9 +109,8 @@ namespace storm {
                  */
 
                 template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type=0>
-                static void printTransitions(const uint64_t  N, ValueType const diff, storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, std::vector<ValueType> const& exitRateVector,  storm::storage::BitVector const& markovianStates,
-                                             storm::storage::BitVector const& psiStates,  std::vector<std::vector<ValueType>> relReachability,
-                                             storm::storage::BitVector const& cycleStates , storm::storage::BitVector const& cycleGoalStates ,std::vector<std::vector<std::vector<ValueType>>>& unifVectors, std::ofstream& logfile);
+                static void printTransitions(storm::storage::SparseMatrix<ValueType> const& fullTransitionMatrix, std::vector<ValueType> const& exitRateVector,  storm::storage::BitVector const& markovianStates,
+                                             storm::storage::BitVector const& psiStates, std::ofstream& logfile);
 
                 template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type = 0>
                 static void computeBoundedReachabilityProbabilities(Environment const& env, OptimizationDirection dir, storm::storage::SparseMatrix<ValueType> const& transitionMatrix, std::vector<ValueType> const& exitRates, storm::storage::BitVector const& goalStates, storm::storage::BitVector const& markovianNonGoalStates, storm::storage::BitVector const& probabilisticNonGoalStates, std::vector<ValueType>& markovianNonGoalValues, std::vector<ValueType>& probabilisticNonGoalValues, ValueType delta, uint64_t numberOfSteps, storm::solver::MinMaxLinearEquationSolverFactory<ValueType> const& minMaxLinearEquationSolverFactory);

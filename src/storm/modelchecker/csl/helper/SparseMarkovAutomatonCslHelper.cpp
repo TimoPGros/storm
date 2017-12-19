@@ -159,12 +159,9 @@ namespace storm {
             }
 
             template<typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type>
-            void SparseMarkovAutomatonCslHelper::printTransitions(const uint64_t  N, ValueType const diff,
-                    storm::storage::SparseMatrix<ValueType> const &fullTransitionMatrix,
+            void SparseMarkovAutomatonCslHelper::printTransitions(storm::storage::SparseMatrix<ValueType> const &fullTransitionMatrix,
                     std::vector<ValueType> const &exitRateVector, storm::storage::BitVector const &markovianStates,
-                    storm::storage::BitVector const &psiStates, std::vector<std::vector<ValueType>> relReachability,
-                    const storage::BitVector &cycleStates, const storage::BitVector &cycleGoalStates,
-                    std::vector<std::vector<std::vector<ValueType>>> &unifVectors, std::ofstream& logfile) {
+                    storm::storage::BitVector const &psiStates, std::ofstream& logfile) {
 
                 auto const& rowGroupIndices = fullTransitionMatrix.getRowGroupIndices();
                 auto numberOfStates = fullTransitionMatrix.getRowGroupCount();            
@@ -178,7 +175,7 @@ namespace storm {
                     for (auto j = from ; j < to; j++){
                         for (auto &v : fullTransitionMatrix.getRow(j)) {
                             if (markovianStates[i]){
-                                logfile   << v.getValue()  *exitRateVector[i] << " -> "<< v.getColumn()  << "\t";
+                                logfile   << v.getValue()  *exitRateVector[i] << " !-> "<< v.getColumn()  << "\t";
                             } else {
                                 logfile   << v.getValue() << " -> "<< v.getColumn()  << "\t";
                             }
@@ -187,36 +184,7 @@ namespace storm {
                     }
                 }
                 logfile << "\n";
-
-                logfile << "probStates\tmarkovianStates\tgoalStates\tcycleStates\tcycleGoalStates\n";
-                    for (int i =0 ; i< markovianStates.size() ; i++){
-                        logfile << (~markovianStates)[i] << "\t\t" << markovianStates[i] << "\t\t" << psiStates[i] << "\t\t" << cycleStates[i] << "\t\t" << cycleGoalStates[i] << "\n";
-                }
-
-                logfile << "Iteration for N = " << N << "maximal difference was " << diff << "\n";
-                logfile << "vd: \n";
-                for (uint64_t i =0 ; i<unifVectors[0].size(); i++){
-                    for(uint64_t j=0; j<unifVectors[0][i].size(); j++){
-                        logfile << unifVectors[0][i][j] << "\t" ;
-                    }
-                    logfile << "\n";
-                }
-
-                logfile << "\nvu:\n";
-                for (uint64_t i =0 ; i<unifVectors[1].size(); i++){
-                    for(uint64_t j=0; j<unifVectors[1][i].size(); j++){
-                        logfile << unifVectors[1][i][j] << "\t" ;
-                    }
-                    logfile << "\n";
-                }
-
-                logfile << "\nwu\n";
-                for (uint64_t i =0 ; i<unifVectors[2].size(); i++){
-                    for(uint64_t j=0; j<unifVectors[2][i].size(); j++){
-                        logfile << unifVectors[2][i][j] << "\t" ;
-                    }
-                    logfile << "\n";
-                }
+               
             }
 
             template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type>
@@ -386,7 +354,7 @@ namespace storm {
             template<typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type>
             void SparseMarkovAutomatonCslHelper::identify(
                     storm::storage::SparseMatrix<ValueType> const &fullTransitionMatrix,
-                    storm::storage::BitVector const &markovianStates, storm::storage::BitVector const& psiStates) {
+                    storm::storage::BitVector const &markovianStates, storm::storage::BitVector const& psiStates, std::vector<ValueType> const &exitRateVector) {
                 std::ofstream idstuff("idstuff", std::ios::app);
 
 
@@ -425,6 +393,7 @@ namespace storm {
                 }
 
                 ValueType maxExit =0;
+                ValueType minExit = 100000;
                 int fanMax = 0;
                 int fanSum = 0;
                 int fanMin = 100000;
@@ -476,13 +445,9 @@ namespace storm {
                 idstuff << fanMin << "\t" << fanMax << "\t" << fanSum << "\t" << markCount << "\t" << fanAverage << "\t";
                 idstuff << ndMin << "\t" << ndMax << "\t" << ndSum << "\t" << probCount << "\t" << ndAverage<< "\t";
                 auto cycles = identifyProbCycles(fullTransitionMatrix, markovianStates, psiStates);
-                bool hasCycles = false;
-
-
-
-
                 std::vector<int> cycleId(fullTransitionMatrix.getRowGroupCount(), 0);
 
+                /*bool hasCycles = false;
                 for (int i = 0 ; i<cycles.size(); i++){
                     if (cycles[i]!=-1 ){
                         cycleId[cycles[i]]++;
@@ -491,6 +456,24 @@ namespace storm {
                         }
                     }
                 }
+
+
+                for (auto i = 0; i<cycles.size(); i++){
+                    std::string kind = "";
+                    if (markovianStates[i]){
+                        kind = " markovian";
+                    }
+                    if (psiStates[i]){
+                        kind+=" goal";
+                    }
+                    std::cout << i << "\t" << cycles[i] << "\t" << cycleId[i] << kind <<"\n";
+                }
+                
+
+
+
+
+
 
                 std::cout << "\n";
 
@@ -512,10 +495,13 @@ namespace storm {
 
                 double average =sum;
                 average /= count;
-
-                std::cout << "Number of Cycles: " << count << " capturing states: " << sum << " min size: " << min << " max size: " << max << " average : " << average << "\n";
-                idstuff << count << "\t" << sum << "\t" << min << "\t" << max << "\t" << average << "\n";
+                */
+                //std::cout << "Number of Cycles: " << count << " capturing states: " << sum << " min size: " << min << " max size: " << max << " average : " << average << "\n";
+                //idstuff << count << "\t" << sum << "\t" << min << "\t" << max << "\t" << average << "\n";
                 std::cout  << "has real Probabilities!=1: " << realProb <<  " Alternating: " << Alternating <<  "\n";
+
+
+                //printTransitions(fullTransitionMatrix, exitRateVector, markovianStates, psiStates, idstuff);
             }
 
             template <typename ValueType, typename std::enable_if<storm::NumberTraits<ValueType>::SupportsExponential, int>::type>
@@ -564,7 +550,7 @@ namespace storm {
                 std::vector<int> cycleStates(markovianStates.size(), -1);
                 for (int i = 0 ; i< finish.size() ; i++){
                     auto f = finish[i];
-                    for (int j =i+1; j<finish.size() ; j++){
+                    for (int j =i+ 1; j<finish.size() ; j++){
                         if (finish[j]==f){
                             cycleStates[transformIndice(probabilisticNonGoalStates,i)]=f;
                             cycleStates[transformIndice(probabilisticNonGoalStates,j)]=f;
@@ -621,7 +607,18 @@ namespace storm {
                                                                             storm::solver::MinMaxLinearEquationSolverFactory<ValueType> const &minMaxLinearEquationSolverFactory) {
                 STORM_LOG_TRACE("Using UnifPlus to compute bounded until probabilities.");
 
-                identify(transitionMatrix,markovStates,psiStates);
+                //identify(transitionMatrix,markovStates,psiStates,exitRateVector);
+                storm::storage::BitVector probabilisticStates = ~markovStates;
+                storm::storage::StronglyConnectedComponentDecomposition<double> sccList(transitionMatrix, probabilisticStates, true, false);
+                std::cout << "size of SCC: " << sccList.size() << "\n";
+                for (auto const & scc: sccList){
+                    for (auto i: scc){
+                    std::cout << i << "\t";
+                    }
+                    std::cout << std::endl;
+                }
+
+
                 std::cout << "returned\n";
 /*
                 std::ofstream logfile("U+logfile.txt", std::ios::app);
@@ -632,7 +629,6 @@ namespace storm {
                 //bitvectors to identify different kind of states
                 storm::storage::BitVector markovianStates = markovStates;
                 storm::storage::BitVector allStates(markovianStates.size(), true);
-                storm::storage::BitVector probabilisticStates = ~markovianStates;
 
 
                 //vectors to save calculation
