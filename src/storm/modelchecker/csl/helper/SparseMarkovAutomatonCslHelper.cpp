@@ -421,7 +421,7 @@ namespace storm {
                         for (auto& element : fullTransitionMatrix.getRow(to)){
                             fan++;
                         }
-                        ValueType rate = exitRateVector[to];
+                        ValueType rate = exitRateVector[i];
                         maxExit = std::max(maxExit, rate);
                         if (rate !=0){
                             minExit = std::min(minExit,rate);
