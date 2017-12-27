@@ -423,7 +423,9 @@ namespace storm {
                         }
                         ValueType rate = exitRateVector[to];
                         maxExit = std::max(maxExit, rate);
-                        minExit = std::min(minExit,rate);
+                        if (rate !=0){
+                            minExit = std::min(minExit,rate);
+                        }
                         sumExit+=rate;
                         fanSum+=fan;
                         fanMin=std::min(fanMin,fan);
