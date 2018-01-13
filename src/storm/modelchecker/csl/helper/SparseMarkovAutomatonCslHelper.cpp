@@ -530,6 +530,7 @@ namespace storm {
                 //logfile << "Using U+\n";
                 ValueType maxNorm = storm::utility::zero<ValueType>();
                 ValueType oldDiff = -storm::utility::zero<ValueType>();
+                int counter = 0;
 
                 //bitvectors to identify different kind of states
                 storm::storage::BitVector markovianStates = markovStates;
@@ -616,6 +617,7 @@ namespace storm {
                 }
                 // while not close enough to precision:
                 do {
+                    counter++;
                     //logfile << "starting iteration\n";
                     maxNorm = storm::utility::zero<ValueType>();
                     // (2) update parameter
@@ -693,9 +695,18 @@ namespace storm {
                     //printTransitions(N, maxNorm, fullTransitionMatrix, exitRate, markovianStates, psiStates,
                     //                relReachability, psiStates, psiStates, unifVectors, logfile); //TODO remove
 
-                    // (6) double lambda
-
                     lambda = 2 * lambda;
+                    // (6) double lambda
+                    if (counter==2){
+                        ValueType diff0 = oldDiff;
+                        ValueType diff1 = maxNorm;
+                        ValueType delta = diff1 / diff0;
+                        ValueType n = (epsilon * (1-kappa));
+                        n = n / (diff0);
+                        n = log(n)/log(delta);
+                        int nn = ceil(n) -2;
+                        lambda = pow(2,nn)*lambda;
+                    }
 
                     // (7) escape if not coming closer to solution
                     if (oldDiff != -1) {
@@ -705,7 +716,7 @@ namespace storm {
                         }
                     }
                     oldDiff = maxNorm;
-                    //std::cout << "Finished Iteration for N = " << N << " with difference " << maxNorm << "\n";
+                    std::cout << "Finished Iteration for N = " << N << " with difference " << maxNorm << "\n";
                 } while (maxNorm > epsilon * (1 - kappa));
 
                 logfile.close();
