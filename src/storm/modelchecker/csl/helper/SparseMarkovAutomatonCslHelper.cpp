@@ -704,7 +704,7 @@ namespace storm {
                         ValueType n = (epsilon * (1-kappa));
                         n = n / (diff0);
                         n = log(n)/log(delta);
-                        int nn = ceil(n) -2;
+                        int nn = ceil(n) -3;
                         lambda = pow(2,nn)*lambda;
                     }
 
